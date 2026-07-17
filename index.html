@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RevOps AI Wiki</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+<style>
+  /* ── CONFIG — edit these two lines after deploying ── */
+  :root {
+    --api-url: "https://caglkusjznvimobeuqfc.supabase.co/functions/v1/wiki-api";
+    --api-key: "revops-wiki-2026";
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #F5F6FA;
+    --surface:    #FFFFFF;
+    --surface2:   #F0F2F7;
+    --border:     #DDE1EC;
+    --border2:    #C8CEDF;
+    --text:       #1A1D2E;
+    --text2:      #5A6078;
+    --text3:      #8A90A8;
+    --accent:     #E8920A;
+    --accent-bg:  rgba(232,146,10,0.1);
+    --radius:     8px;
+    --font:       'Inter', system-ui, sans-serif;
+    --mono:       'JetBrains Mono', monospace;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.6; min-height: 100vh; }
+
+  .page { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+  /* Header */
+  .header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+  .header-logo { font-family: var(--mono); font-size: 18px; color: var(--accent); letter-spacing: -0.02em; }
+  .header-title { font-size: 20px; font-weight: 600; color: var(--text); }
+  .header-sub { font-size: 13px; color: var(--text3); margin-left: auto; }
+
+  /* Post form */
+  .post-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; }
+  .post-card h2 { font-size: 14px; font-weight: 500; color: var(--text2); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .post-grid { display: grid; grid-template-columns: 200px 1fr; gap: 10px; margin-bottom: 10px; }
+  .post-grid input, textarea, input[type=text] { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; color: var(--text); font-family: var(--font); font-size: 14px; outline: none; transition: border-color 0.15s; }
+  .post-grid input:focus, textarea:focus, input[type=text]:focus { border-color: var(--accent); }
+  textarea { width: 100%; min-height: 88px; resize: vertical; margin-bottom: 10px; }
+  .post-row { display: flex; align-items: center; gap: 12px; }
+  .btn { padding: 7px 18px; border-radius: var(--radius); background: var(--accent); color: #1a1200; border: none; font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.88; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .status { font-size: 13px; color: var(--text2); }
+  .status.ok { color: #4ade80; }
+  .status.err { color: #f87171; }
+
+  /* Search */
+  .search-wrap { position: relative; margin-bottom: 1.25rem; }
+  .search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; }
+  .search-wrap input { width: 100%; padding-left: 38px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding-top: 9px; padding-bottom: 9px; color: var(--text); font-size: 14px; font-family: var(--font); outline: none; transition: border-color 0.15s; }
+  .search-wrap input:focus { border-color: var(--accent); }
+
+  /* Stats */
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .stat { font-size: 12px; color: var(--text3); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 3px 12px; }
+  .stat strong { color: var(--text2); }
+
+  /* Category sections */
+  .cat-section { margin-bottom: 2rem; }
+  .cat-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+  .cat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .cat-label { font-size: 12px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; }
+  .cat-count { font-size: 12px; color: var(--text3); margin-left: auto; }
+
+  /* Note cards */
+  .note { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid; border-radius: 0 8px 8px 0; padding: 1rem 1.1rem; margin-bottom: 0.65rem; }
+  .note-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
+  .note-author { font-size: 13px; font-weight: 600; color: var(--text); }
+  .note-time { font-size: 12px; color: var(--text3); }
+  .note-summary { font-size: 13px; color: var(--text2); font-style: italic; margin-bottom: 7px; line-height: 1.5; }
+  .note-body { font-size: 14px; color: var(--text); line-height: 1.65; margin-bottom: 8px; }
+  .note-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); color: var(--text3); }
+  .tag.match { background: var(--accent-bg); color: var(--accent); border-color: rgba(245,166,35,0.3); }
+  .hl { background: var(--accent-bg); color: var(--accent); border-radius: 2px; padding: 0 1px; }
+
+  /* States */
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--text3); font-size: 14px; }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: -3px; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .cat-header { position: relative; }
+  .cat-tip { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--border2); color: var(--text2); font-size: 10px; font-weight: 600; cursor: default; flex-shrink: 0; position: relative; }
+  .cat-tip:hover .cat-tooltip { opacity: 1; pointer-events: auto; }
+  .cat-tooltip { position: absolute; left: 24px; top: 50%; transform: translateY(-50%); background: var(--surface); border: 1px solid var(--border2); border-radius: 6px; padding: 6px 10px; font-size: 12px; color: var(--text2); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-width: 280px; white-space: normal; line-height: 1.4; width: 220px; }
+  .ai-hint { font-size: 12px; color: var(--text3); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+  .ai-hint-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .cat-ref { margin-bottom: 1.5rem; }
+  .cat-ref-title { font-size: 12px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+  .cat-ref-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+  .cat-ref-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 20px; background: var(--surface); border: 1px solid var(--border); cursor: default; position: relative; }
+  .cat-ref-pill:hover .cat-tooltip { opacity: 1; pointer-events: auto; }
+  .cat-ref-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .cat-ref-name { font-size: 12px; color: var(--text2); font-weight: 500; }
+  .cat-tooltip { position: absolute; left: 0; top: calc(100% + 6px); background: var(--surface); border: 1px solid var(--border2); border-radius: 6px; padding: 7px 10px; font-size: 12px; color: var(--text2); opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.12); width: 220px; white-space: normal; line-height: 1.5; }
+
+  /* Config banner */
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <span class="header-logo">RevOps//</span>
+    <span class="header-title">AI Wiki</span>
+    <span class="header-sub">Shared team learnings</span>
+  </div>
+
+  <div class="post-card">
+    <h2>Add a note</h2>
+    <div class="post-grid">
+      <input type="text" id="author" placeholder="Your name" />
+      <div></div>
+    </div>
+    <textarea id="note-text" placeholder="Share a tip, gotcha, workflow trick, or prompting discovery…"></textarea>
+    <div class="ai-hint"><span class="ai-hint-dot"></span> Claude will automatically categorise, summarise, and tag your note — just write naturally.</div>
+    <div class="post-row" style="margin-top:10px">
+      <button class="btn" id="submit-btn" onclick="submitNote()">Post note</button>
+      <span class="status" id="status-msg"></span>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" id="search-input" placeholder="Search notes, names, tags, summaries…" oninput="renderNotes()" />
+  </div>
+
+  <div class="stats" id="stats-bar"></div>
+  <div id="wiki-body"><div class="empty"><span class="spinner"></span> Loading…</div></div>
+
+</div>
+
+<script>
+// ── CONFIG — set these after deploying your Edge Function ──────────────────
+const API_URL = 'https://caglkusjznvimobeuqfc.supabase.co/functions/v1/wiki-api'; // e.g. https://xyz.supabase.co/functions/v1/wiki-api
+const API_KEY = 'revops-wiki-2026';   // the WIKI_SECRET_KEY you set in supabase secrets
+// ──────────────────────────────────────────────────────────────────────────
+
+// ── CATEGORIES — add or remove categories here, that's all you need to do ──
+const CATEGORIES = [
+  // ── How to talk to Claude ──
+  'Prompting',         // writing better instructions and questions
+  'Context',           // giving Claude background info, memory, system prompts
+  'Output',            // formatting, length, tone of Claude responses
+
+  // ── What Claude produces ──
+  'Artifacts',         // shared interactive outputs, widgets, HTML tools
+  'Skills',            // building and using skills to teach Claude new behaviours
+  'Workflows',         // multi-step processes, automations, repeatable tasks
+
+  // ── Where Claude lives ──
+  'Claude Chat',       // tips specific to claude.ai chat interface
+  'Cowork',            // using Claude in Cowork for file and task automation
+  'Claude in Excel',   // spreadsheet agent tips and discoveries
+  'Claude in Chrome',  // browsing agent, web research, page summarisation
+  'API & Integrations',// connecting Claude to other tools, Slack, Salesforce etc
+
+  // ── Data and storage ──
+  'Data Storage',      // persistent storage, shared data, artifacts storing state
+  'Files & Uploads',   // uploading PDFs, CSVs, images, working with documents
+
+  // ── Learning curve ──
+  'Gotchas',           // things that surprised you or caught you off guard
+  'Limitations',       // things Claude can't do or does poorly
+  'Errors & Fixes',    // error messages and how to resolve them
+
+  // ── Catch-all ──
+  'Other'
+];
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CAT_DESCRIPTIONS = {
+  'Prompting':          'Tips for writing better instructions — phrasing, structure, what to include',
+  'Context':            'How to give Claude background info, memory, or a system prompt',
+  'Output':             'Controlling the format, length, tone, or style of Claude responses',
+  'Artifacts':          'Shared interactive outputs, widgets, and HTML tools built with Claude',
+  'Skills':             'Building and using skills to teach Claude repeatable behaviours',
+  'Workflows':          'Multi-step processes, automations, and repeatable task sequences',
+  'Claude Chat':        'Tips specific to the claude.ai chat interface',
+  'Cowork':             'Using Claude in Cowork for file and task automation',
+  'Claude in Excel':    'Spreadsheet agent — formulas, data cleaning, analysis',
+  'Claude in Chrome':   'Browsing agent — web research, page summarisation, data extraction',
+  'API & Integrations': 'Connecting Claude to Slack, Salesforce, and other tools',
+  'Data Storage':       'Persistent storage, shared data, artifacts that remember state',
+  'Files & Uploads':    'Uploading PDFs, CSVs, images, and working with documents',
+  'Gotchas':            'Things that surprised you or caught you off guard',
+  'Limitations':        'Things Claude cannot do or does not do well',
+  'Errors & Fixes':     'Error messages you hit and how to resolve them',
+  'Other':              'Anything that does not fit the categories above'
+};
+
+const COLOR_POOL = [
+  '#378ADD','#1D9E75','#7F77DD','#EF9F27','#D4537E',
+  '#D85A30','#E24B4A','#3BAFD9','#8B6FD4','#2EAA7A',
+  '#F5A623','#4CB8C4','#A066D3','#3DBE82','#E8632A',
+  '#5B8FF9','#C84B8F','#2DB37A','#F06D4A','#6B7FD4'
+];
+const CAT_ORDER = CATEGORIES;
+const CAT_COLORS = {};
+CATEGORIES.forEach((cat, i) => {
+  CAT_COLORS[cat] = cat === 'Other' ? '#888780' : COLOR_POOL[i % COLOR_POOL.length];
+});
+
+let allNotes = [];
+async function loadNotes() {
+  try {
+    const r = await fetch(API_URL, { headers: { 'X-Wiki-Key': API_KEY } });
+    allNotes = await r.json();
+    if (!Array.isArray(allNotes)) allNotes = [];
+  } catch(e) {
+    document.getElementById('wiki-body').innerHTML = '<div class="empty">Could not reach the API. Check your URL and key.</div>';
+    return;
+  }
+  renderNotes();
+}
+
+function hl(text, q) {
+  if (!q || !text) return text || '';
+  const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return String(text).replace(new RegExp(`(${esc})`, 'gi'), '<span class="hl">$1</span>');
+}
+
+function matches(note, q) {
+  if (!q) return true;
+  const lq = q.toLowerCase();
+  return (note.text||'').toLowerCase().includes(lq) ||
+         (note.author||'').toLowerCase().includes(lq) ||
+         (note.summary||'').toLowerCase().includes(lq) ||
+         (note.tags||[]).some(t => t.toLowerCase().includes(lq)) ||
+         (note.category||'').toLowerCase().includes(lq);
+}
+
+function renderNotes() {
+  const q = (document.getElementById('search-input')||{}).value || '';
+  const filtered = allNotes.filter(n => matches(n, q));
+
+  const statsEl = document.getElementById('stats-bar');
+  const cats = [...new Set(allNotes.map(n => n.category))].filter(Boolean);
+  statsEl.innerHTML = `<span class="stat"><strong>${allNotes.length}</strong> notes</span>` +
+    `<span class="stat"><strong>${cats.length}</strong> categories</span>` +
+    (q ? `<span class="stat"><strong>${filtered.length}</strong> matching</span>` : '');
+
+  const body = document.getElementById('wiki-body');
+
+  // Always render category reference pills
+  let refHtml = `<div class="cat-ref">
+    <div class="cat-ref-title">Categories — hover to learn what belongs where</div>
+    <div class="cat-ref-grid">`;
+  CATEGORIES.forEach((cat, i) => {
+    const col = CAT_COLORS[cat] || '#888780';
+    const desc = CAT_DESCRIPTIONS[cat] || '';
+    refHtml += `<div class="cat-ref-pill">
+      <div class="cat-ref-dot" style="background:${col}"></div>
+      <span class="cat-ref-name">${cat}</span>
+      ${desc ? `<span class="cat-tooltip">${desc}</span>` : ''}
+    </div>`;
+  });
+  refHtml += `</div></div>`;
+
+  if (allNotes.length === 0) { body.innerHTML = refHtml + '<div class="empty">No notes yet — be the first to post!</div>'; return; }
+  if (filtered.length === 0) { body.innerHTML = '<div class="empty">No notes match that search.</div>'; return; }
+
+  const grouped = {};
+  CAT_ORDER.forEach(c => grouped[c] = []);
+  filtered.forEach(n => { const c = n.category || 'Other'; (grouped[c] = grouped[c]||[]).push(n); });
+
+  let html = '';
+  for (const cat of CAT_ORDER) {
+    const notes = grouped[cat];
+    if (!notes || notes.length === 0) continue;
+    const col = CAT_COLORS[cat] || CAT_COLORS.Other;
+    const desc = CAT_DESCRIPTIONS[cat] || '';
+    html += `<div class="cat-section">
+      <div class="cat-header">
+        <div class="cat-dot" style="background:${col}"></div>
+        <span class="cat-label">${cat}</span>
+        ${desc ? `<span class="cat-tip">?<span class="cat-tooltip">${desc}</span></span>` : ''}
+        <span class="cat-count">${notes.length}</span>
+      </div>`;
+    for (const note of notes) {
+      const date = note.created_at ? new Date(note.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+      const tags = (note.tags||[]).map(t => {
+        const m = q && t.toLowerCase().includes(q.toLowerCase());
+        return `<span class="tag${m?' match':''}">${t}</span>`;
+      }).join('');
+      html += `<div class="note" style="border-left-color:${col}">
+        <div class="note-meta">
+          <span class="note-author">${hl(note.author||'Anonymous', q)}</span>
+          <span class="note-time">${date}</span>
+        </div>
+        ${note.summary ? `<div class="note-summary">${hl(note.summary, q)}</div>` : ''}
+        <div class="note-body">${hl(note.text||'', q)}</div>
+        ${tags ? `<div class="note-tags">${tags}</div>` : ''}
+      </div>`;
+    }
+    html += '</div>';
+  }
+  body.innerHTML = refHtml + html;
+}
+
+async function classify(text) {
+  const catList = CATEGORIES.join(', ');
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: `You are a RevOps team knowledge classifier. Analyse this note about using Claude AI and return ONLY a JSON object (no markdown, no preamble) with:
+- "category": one of [${catList}]
+- "summary": one concise sentence (max 15 words) summarising the key insight
+- "tags": array of 2-4 lowercase keyword tags
+
+Note: "${text}"` }]
+    })
+  });
+  const data = await r.json();
+  const raw = data.content?.find(b => b.type === 'text')?.text || '{}';
+  try { return JSON.parse(raw.replace(/```json|```/g,'')); } catch { return { category: 'Other', summary: '', tags: [] }; }
+}
+
+async function submitNote() {
+  const author = (document.getElementById('author')?.value || '').trim();
+  const text   = (document.getElementById('note-text')?.value || '').trim();
+  const btn    = document.getElementById('submit-btn');
+  const status = document.getElementById('status-msg');
+
+  if (!author) { setStatus('Enter your name first.', 'err'); return; }
+  if (text.length < 10) { setStatus('Note is too short.', 'err'); return; }
+
+  btn.disabled = true;
+  status.className = 'status';
+  status.innerHTML = '<span class="spinner"></span> Classifying…';
+
+  try {
+    let ai = { category: 'Other', summary: '', tags: [] };
+    try {
+      status.innerHTML = '<span class="spinner"></span> Classifying…';
+      ai = await classify(text);
+    } catch(e) {
+      console.warn('AI classification failed, saving with defaults:', e);
+    }
+
+    status.innerHTML = '<span class="spinner"></span> Saving…';
+    const r = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Wiki-Key': API_KEY },
+      body: JSON.stringify({ author, text, category: ai.category, summary: ai.summary, tags: ai.tags })
+    });
+
+    if (!r.ok) throw new Error(await r.text());
+    const saved = await r.json();
+    allNotes.unshift(saved);
+    document.getElementById('note-text').value = '';
+    setStatus(`Posted to ${saved.category}!`, 'ok');
+    setTimeout(() => setStatus('', ''), 3000);
+    renderNotes();
+  } catch(e) {
+    setStatus('Error: ' + e.message, 'err');
+  }
+  btn.disabled = false;
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status-msg');
+  el.textContent = msg;
+  el.className = 'status' + (type ? ' ' + type : '');
+}
+
+loadNotes();
+</script>
+</body>
+</html>
